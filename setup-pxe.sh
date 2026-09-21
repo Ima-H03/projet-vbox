@@ -1,41 +1,89 @@
-#!/usr/bin/env bash
+#!/bin/bash
 
-# SAE 51 - Installation des fichiers Debian netboot dans le TFTP VirtualBox
-# Le script prepare le TFTP integre pour un boot PXE BIOS avec pxelinux.0.
+set -e
 
-set -u
+TFTP_DIR="${HOME}/.config/VirtualBox/TFTP"
+URL="https://deb.debian.org/debian/dists/stable/main/installer-amd64/current/images/netboot/netboot.tar.gz"
 
-fail() {
-    echo "ERREUR: $*" >&2
-    exit 1
+TMP_DIR="$(mktemp -d)"
+ARCHIVE="${TMP_DIR}/netboot.tar.gz"
+
+cleanup() {
+    rm -rf "$TMP_DIR"
 }
+trap cleanup EXIT
 
-command -v wget >/dev/null 2>&1 || fail "wget est requis."
-command -v tar >/dev/null 2>&1 || fail "tar est requis."
-command -v VBoxManage >/dev/null 2>&1 || fail "VBoxManage est introuvable dans le PATH."
+echo "Preparation du serveur TFTP VirtualBox..."
+echo "Repertoire TFTP : $TFTP_DIR"
 
-TFTP_ROOT="${HOME}/.config/VirtualBox/TFTP"
-NETBOOT_URL="https://deb.debian.org/debian/dists/stable/main/installer-amd64/current/images/netboot/netboot.tar.gz"
-TMP_ARCHIVE="${TMPDIR:-/tmp}/debian-netboot.tar.gz"
+mkdir -p "$TFTP_DIR"
 
-mkdir -p "$TFTP_ROOT"
+echo "Telechargement du netboot Debian..."
 
-echo "Telechargement du netboot Debian stable..."
-wget -O "$TMP_ARCHIVE" "$NETBOOT_URL" || fail "Impossible de telecharger l'archive netboot Debian."
+if command -v curl >/dev/null 2>&1; then
+    curl -fL "$URL" -o "$ARCHIVE"
+elif command -v wget >/dev/null 2>&1; then
+    wget -q "$URL" -O "$ARCHIVE"
+else
+    echo "ERREUR : curl ou wget est necessaire."
+    exit 1
+fi
 
-echo "Extraction dans : $TFTP_ROOT"
-tar -xzf "$TMP_ARCHIVE" -C "$TFTP_ROOT" || fail "Extraction de l'archive impossible."
-rm -f "$TMP_ARCHIVE"
+echo "Extraction du netboot Debian..."
 
-[ -f "$TFTP_ROOT/pxelinux.0" ] || fail "pxelinux.0 absent du TFTP."
-[ -f "$TFTP_ROOT/debian-installer/amd64/linux" ] || fail "linux absent du netboot Debian."
-[ -f "$TFTP_ROOT/debian-installer/amd64/initrd.gz" ] || fail "initrd.gz absent du netboot Debian."
+mkdir -p "$TMP_DIR/extract"
+tar -xzf "$ARCHIVE" -C "$TMP_DIR/extract"
 
-chmod -R u+rwX,go+rX "$TFTP_ROOT"
+PXELINUX_SOURCE="$(find "$TMP_DIR/extract" -type f -name "pxelinux.0" | head -n 1)"
+LDLINUX_SOURCE="$(find "$TMP_DIR/extract" -type f -name "ldlinux.c32" | head -n 1)"
+
+if [ -z "$PXELINUX_SOURCE" ]; then
+    echo "ERREUR : pxelinux.0 introuvable."
+    exit 1
+fi
+
+if [ -z "$LDLINUX_SOURCE" ]; then
+    echo "ERREUR : ldlinux.c32 introuvable."
+    exit 1
+fi
+
+echo "Installation des fichiers PXE..."
+
+cp -f "$PXELINUX_SOURCE" "$TFTP_DIR/pxelinux.0"
+cp -f "$LDLINUX_SOURCE" "$TFTP_DIR/ldlinux.c32"
+
+echo "Installation des fichiers Debian..."
+
+rm -rf "$TFTP_DIR/debian-installer"
+
+cp -a "$TMP_DIR/extract/debian-installer" "$TFTP_DIR/"
+
+echo "Creation de la configuration PXELINUX..."
+
+mkdir -p "$TFTP_DIR/pxelinux.cfg"
+
+rm -f "$TFTP_DIR/pxelinux.cfg/default"
+
+cat > "$TFTP_DIR/pxelinux.cfg/default" <<'EOF'
+DEFAULT install
+PROMPT 0
+TIMEOUT 1
+
+LABEL install
+    MENU LABEL Installation Debian stable
+    KERNEL debian-installer/amd64/linux
+    APPEND vga=788 initrd=debian-installer/amd64/initrd.gz --- quiet
+EOF
 
 echo
- echo "Preparation PXE terminee."
-echo "TFTP : $TFTP_ROOT"
-echo "Boot : pxelinux.0"
-echo "Kernel : debian-installer/amd64/linux"
-echo "Initrd : debian-installer/amd64/initrd.gz"
+echo "Preparation PXE terminee."
+echo
+echo "Fichiers principaux :"
+echo "  $TFTP_DIR/pxelinux.0"
+echo "  $TFTP_DIR/ldlinux.c32"
+echo "  $TFTP_DIR/pxelinux.cfg/default"
+echo "  $TFTP_DIR/debian-installer/amd64/linux"
+echo "  $TFTP_DIR/debian-installer/amd64/initrd.gz"
+echo
+echo "Configuration PXELINUX :"
+cat "$TFTP_DIR/pxelinux.cfg/default"
