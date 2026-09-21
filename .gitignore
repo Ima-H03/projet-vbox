@@ -1,0 +1,27 @@
+# Fichiers temporaires
+*.bak
+*.tmp
+*.log
+
+# Captures de test
+*.pcap
+*.png
+
+# Archives et images téléchargées localement
+*.zip
+*.iso
+*.tar
+*.tar.gz
+
+# Fichiers système / éditeur
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# Fichiers VirtualBox locaux
+*.vbox-prev
+*.vdi
+*.vmdk
+*.vhd
+*.vhdx
