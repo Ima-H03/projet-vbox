@@ -16,9 +16,9 @@ fi
 vm_cmd() { "$VBOXMANAGE" "$@"; }
 
 get_default_machine_folder() {
-    vm_cmd list systemproperties --machinereadable \
+    vm_cmd list systemproperties \
         | tr -d '\r' \
-        | sed -n 's/^defaultMachineFolder="\(.*\)"$/\1/p' \
+        | sed -n 's/^Default machine folder:[[:space:]]*//p' \
         | head -n 1
 }
 
@@ -78,7 +78,27 @@ case "$ACTION" in
         case "$ACTION" in
             S) run vm_cmd unregistervm "$NAME" --delete; echo "VM '$NAME' supprimee." ;;
             D) run vm_cmd startvm "$NAME" --type headless; echo "VM '$NAME' demarree." ;;
-            A) run vm_cmd controlvm "$NAME" acpipowerbutton; echo "Demande d'arret envoyee a '$NAME'." ;;
+            A)
+                echo "Arret de '$NAME'..."
+                vm_cmd controlvm "$NAME" poweroff || fail "Impossible d'arreter '$NAME'."
+
+                for _ in {1..10}; do
+                    STATE="$(vm_cmd showvminfo "$NAME" --machinereadable 2>/dev/null |
+                        tr -d '\r' |
+                        sed -n 's/^VMState="\([^"]*\)"$/\1/p' |
+                        head -n 1)"
+
+                    if [ "$STATE" = "poweroff" ]; then
+                        echo "VM '$NAME' arretee."
+                        break
+                    fi
+
+                    sleep 1
+                done
+
+                [ "$STATE" = "poweroff" ] ||
+                    fail "La VM '$NAME' ne s'est pas arretee correctement."
+                ;;
         esac
         ;;
     *)
