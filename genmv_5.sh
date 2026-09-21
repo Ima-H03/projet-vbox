@@ -18,7 +18,7 @@ DISK_VARIANT="Standard"
 
 META_PREFIX="SAE51/metadata"
 
-PXE_TFTP_SERVER="10.0.2.4"
+PXE_TFTP_SERVER="10.0.2.2"
 PXE_TFTP_FILE="pxelinux.0"
 PXE_TFTP_PREFIX="${HOME}/.config/VirtualBox/TFTP"
 
