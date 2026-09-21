@@ -1,55 +1,256 @@
 # Automatisation de la création de machines VirtualBox (SAE 51)
 
-**Auteurs :** Algor Zoubabela, Imabith Houngbo
-**Date :** 21/09/2026
+**Auteurs :** Algor Zoubabela, Imabith Houngbo  
+**Date de mise à jour :** 21/09/2026
 
-## Résumé
+## 1. Présentation
 
-Ce document décrit les scripts Windows `genmv_X.bat` qui pilotent VirtualBox avec la commande `VBoxManage` pour créer, lister, démarrer, arrêter et supprimer des machines virtuelles Debian sans interface graphique. Le travail est fait par versions successives, chacune reprenant la précédente. Le document explique l'utilisation, les choix faits, les limites et les problèmes rencontrés.
+Ce projet automatise la création et la gestion de machines virtuelles VirtualBox à l'aide de `VBoxManage`.
 
-## Prérequis
+Après plusieurs essais, l'équipe a retenu **Bash sous Linux** comme solution principale. Les tests réalisés ont été plus concluants dans l'environnement utilisé pour le projet, notamment pour l'utilisation de `VBoxManage` et la configuration du démarrage réseau PXE.
 
-- Windows avec VirtualBox installé dans `C:\Program Files\Oracle\VirtualBox` (le script ajoute ce dossier au PATH)
-- Paramètres modifiables en tête de script : `RAM=4096` (Mo) et `DISK=65536` (Mo, soit 64 Gio)
+Les scripts ont été développés progressivement afin d'ajouter les fonctionnalités demandées.
 
-## Versions
+## 2. Prérequis
 
-| Version | Contenu | État |
-|---|---|---|
-| genmv_1.bat | Création de `Debian1` (Debian 64 bits, 4096 Mo, disque 64 Gio, NAT), pause, suppression | Testé |
-| genmv_2.bat | Vérification qu'une VM du même nom n'existe pas déjà (suppression puis recréation) | Testé |
-| genmv_3.bat | Arguments L / N / S / D / A, messages d'erreur et codes de sortie | Testé |
+L'environnement de test utilisé pour la solution Bash comprend :
 
-## Utilisation
+- Linux ;
+- Bash ;
+- VirtualBox ;
+- la commande `VBoxManage` disponible dans le PATH ;
+- un accès Internet pour préparer les fichiers Debian nécessaires au PXE.
 
-```bat
-genmv_3.bat L            :: liste les VM
-genmv_3.bat N serveur1   :: crée la VM serveur1
-genmv_3.bat D serveur1   :: démarre serveur1
-genmv_3.bat A serveur1   :: arrête serveur1
-genmv_3.bat S serveur1   :: supprime serveur1
+## 3. Fichiers
+
+Les scripts principaux sont :
+
+```text
+genmv_1.sh
+genmv_2.sh
+genmv_3.sh
+genmv_4.sh
+genmv_5.sh
+setup-pxe.sh
 ```
 
-Codes de sortie : 0 = succès, 1 = mauvais arguments, 2 = VM déjà existante, 3 = échec de création, 4 = échec de suppression, 5 = échec de démarrage, 6 = échec d'arrêt.
+Les fichiers Markdown associés sont :
 
-## Choix techniques
+```text
+README.md
+usage.md
+suivi_projet.md
+```
 
-- `unregistervm --delete` supprime la VM, son disque et son fichier `.vbox`.
-- La taille du disque est en Mo pour `createmedium` (64 Gio = 65536).
-- Les codes retournés par `VBoxManage` sont testés avec `ERRORLEVEL`.
-- Dans genmv_3, si le nom existe déjà, la création est refusée (au lieu de supprimer la VM existante comme dans genmv_2), pour éviter d'effacer une VM par erreur.
+## 4. Utilisation des versions
 
-## Limites
+### Version 1
 
-- Les noms de VM ne doivent pas contenir d'espace.
-- L'arrêt utilise `poweroff` (arrêt brutal), car les VM n'ont pas de système installé.
+```bash
+./genmv_1.sh
+```
 
-## Problèmes rencontrés
+Cette version réalise la première automatisation de création d'une machine Debian.
 
-- **VM verrouillée à la suppression :** juste après `controlvm poweroff`, `unregistervm` échouait (« Cannot unregister the machine while it is locked »). Solution : une pause de 3 secondes (`timeout /t 3 /nobreak`) après l'arrêt.
-- Message « Paramètre invalide détecté » dans les paramètres de la VM (aucun lecteur optique rattaché), sans impact sur le fonctionnement.
+### Version 2
 
-## Astuces
+```bash
+./genmv_2.sh
+```
 
-- Tester avec des noms de VM inventés (`test1`, `test2`) pour ne jamais toucher aux VM existantes.
-- Vérifier avec `VBoxManage list vms` et le dossier `VirtualBox VMs` que
+Cette version ajoute la gestion d'une machine portant déjà le même nom.
+
+### Version 3
+
+La version 3 fonctionne avec les arguments suivants :
+
+```text
+L : liste des VM
+N : nouvelle VM
+S : suppression
+D : démarrage
+A : arrêt
+```
+
+Exemples :
+
+```bash
+./genmv_3.sh L
+./genmv_3.sh N serveur1
+./genmv_3.sh D serveur1
+./genmv_3.sh A serveur1
+./genmv_3.sh S serveur1
+```
+
+Pour les opérations `N`, `S`, `D` et `A`, le nom de la VM doit être fourni.
+
+### Version 4
+
+La version 4 ajoute les métadonnées de la VM.
+
+Les métadonnées enregistrées sont :
+
+- la date de création ;
+- l'utilisateur ayant créé la VM.
+
+Exemple :
+
+```bash
+./genmv_4.sh L
+```
+
+La liste affiche les informations disponibles pour les VM créées avec cette version.
+
+### Version 5
+
+La version 5 reprend les fonctionnalités précédentes et ajoute le démarrage réseau PXE.
+
+Exemple :
+
+```bash
+./genmv_5.sh N test-vbox
+```
+
+La configuration testée est :
+
+```text
+RAM       : 4096 MiB
+Disque    : 64 GiB
+Réseau    : NAT
+Boot 1    : Network
+Boot 2    : HardDisk
+Boot 3    : DVD
+TFTP NAT  : 10.0.2.2
+Fichier   : pxelinux.0
+```
+
+## 5. Préparation du PXE
+
+Avant d'utiliser `genmv_5.sh` pour un démarrage PXE, préparer les fichiers TFTP :
+
+```bash
+chmod +x setup-pxe.sh
+./setup-pxe.sh
+```
+
+Le répertoire utilisé est :
+
+```text
+~/.config/VirtualBox/TFTP
+```
+
+Les fichiers nécessaires comprennent notamment :
+
+```text
+pxelinux.0
+pxelinux.cfg/default
+debian-installer/amd64/linux
+debian-installer/amd64/initrd.gz
+```
+
+Le script de préparation permet d'éviter de dépendre de fichiers présents uniquement sur la machine ayant servi aux premiers tests.
+
+## 6. Scénario complet
+
+Une utilisation complète de la version 5 est :
+
+```bash
+cd ~/projet-vbox
+chmod +x setup-pxe.sh
+./setup-pxe.sh
+./genmv_5.sh N test-vbox
+./genmv_5.sh D test-vbox
+```
+
+Pour lister les machines :
+
+```bash
+./genmv_5.sh L
+```
+
+Pour arrêter :
+
+```bash
+./genmv_5.sh A test-vbox
+```
+
+Pour supprimer :
+
+```bash
+./genmv_5.sh S test-vbox
+```
+
+## 7. Vérification du PXE
+
+Pendant les tests, la VM a demandé au serveur TFTP les éléments suivants :
+
+```text
+test-vbox.pxe
+ldlinux.c32
+pxelinux.cfg/default
+debian-installer/amd64/linux
+debian-installer/amd64/initrd.gz
+```
+
+Le transfert TFTP a été observé dans une capture réseau.
+
+La VM a ensuite affiché l'installateur Debian, ce qui valide le démarrage PXE dans l'environnement de test.
+
+## 8. Gestion des erreurs
+
+Les scripts contrôlent les arguments et les résultats des opérations `VBoxManage`.
+
+Exemple :
+
+```text
+ERREUR: La VM 'test-vbox' n'existe pas.
+```
+
+Les scripts retournent également des codes de sortie permettant d'identifier les principales erreurs.
+
+## 9. Paramètres de la machine virtuelle
+
+Les valeurs utilisées pour les tests sont définies dans les scripts :
+
+```text
+RAM    : 4096 MiB
+Disque : 64 GiB
+Réseau : NAT
+```
+
+## 10. Reproductibilité
+
+Le scénario recommandé pour un autre environnement est :
+
+```text
+setup-pxe.sh
+      |
+      v
+Préparation des fichiers TFTP Debian
+      |
+      v
+genmv_5.sh N <nom>
+      |
+      v
+Configuration de la VM VirtualBox
+      |
+      v
+Boot réseau PXE
+      |
+      v
+PXELINUX
+      |
+      v
+linux + initrd.gz
+      |
+      v
+Installateur Debian
+```
+
+Le fonctionnement PXE dépend de la version et de la configuration de VirtualBox ainsi que des fichiers préparés dans le répertoire TFTP. Le script `setup-pxe.sh` permet de préparer cet environnement avant la création de la VM.
+
+## 11. Limites
+
+- Le démarrage PXE nécessite que les fichiers TFTP soient correctement préparés.
+- Le comportement du réseau NAT et du TFTP dépend de la configuration VirtualBox utilisée.
+- Le scénario PXE a été validé dans l'environnement de test du projet.
