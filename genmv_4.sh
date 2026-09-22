@@ -111,7 +111,7 @@ case "$ACTION" in
                 if [ "$STATE" = "poweroff" ]; then
                     echo "VM '$NAME' deja arretee."
                 else
-                    run vm_cmd controlvm "$NAME" acpipowerbutton
+                    run vm_cmd controlvm "$NAME" poweroff
                     echo "Demande d'arret envoyee a '$NAME'."
                 fi
                 ;;
