@@ -1,0 +1,31 @@
+name: SAE51 Tests
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  tests:
+    runs-on: ubuntu-latest
+    name: Tests V1-V5
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Vérifier la syntaxe Bash
+        shell: bash
+        run: |
+          set -euo pipefail
+          for f in genmv_1.sh genmv_2.sh genmv_3.sh genmv_4.sh genmv_5.sh setup-pxe.sh; do
+            echo "Syntaxe : $f"
+            bash -n "$f"
+          done
+
+      - name: Tests unitaires V1-V5
+        shell: bash
+        run: bash tests/test_unit.sh

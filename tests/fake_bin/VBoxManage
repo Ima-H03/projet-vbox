@@ -1,0 +1,126 @@
+#!/usr/bin/env bash
+set -u
+
+STATE_DIR="${FAKE_VBOX_STATE:-/tmp/fake-vbox-state}"
+HOME_FAKE="${FAKE_VBOX_HOME:-/tmp/fake-vbox}"
+mkdir -p "$STATE_DIR" "$STATE_DIR/meta" "$HOME_FAKE"
+
+log() {
+    printf '%s\n' "$*" >> "$STATE_DIR/commands.log"
+}
+
+state_file() {
+    printf '%s/%s.state' "$STATE_DIR" "$1"
+}
+
+meta_file() {
+    local vm="$1" key="$2"
+    key="${key//\//_}"
+    printf '%s/meta/%s__%s' "$STATE_DIR" "$vm" "$key"
+}
+
+exists_vm() {
+    [ -f "$(state_file "$1")" ]
+}
+
+set_state() {
+    printf '%s\n' "$2" > "$(state_file "$1")"
+}
+
+get_state() {
+    cat "$(state_file "$1")"
+}
+
+cmd="${1:-}"
+shift || true
+log "$cmd $*"
+
+case "$cmd" in
+    list)
+        sub="${1:-}"
+        case "$sub" in
+            systemproperties)
+                echo "Default machine folder: $HOME_FAKE"
+                ;;
+            vms)
+                for f in "$STATE_DIR"/*.state; do
+                    [ -e "$f" ] || continue
+                    vm="$(basename "$f" .state)"
+                    printf '"%s" {00000000-0000-0000-0000-000000000000}\n' "$vm"
+                done
+                ;;
+            *)
+                exit 1
+                ;;
+        esac
+        ;;
+
+    showvminfo)
+        vm="${1:-}"
+        exists_vm "$vm" || exit 1
+        echo "Name: $vm"
+        echo "VMState=\"$(get_state "$vm")\""
+        ;;
+
+    getextradata)
+        vm="${1:-}"
+        key="${2:-}"
+        exists_vm "$vm" || exit 1
+        f="$(meta_file "$vm" "$key")"
+        if [ -f "$f" ]; then
+            echo "Value: $(cat "$f")"
+        else
+            echo "Value: "
+        fi
+        ;;
+
+    setextradata)
+        vm="${1:-}" key="${2:-}" value="${3:-}"
+        exists_vm "$vm" || exit 1
+        printf '%s\n' "$value" > "$(meta_file "$vm" "$key")"
+        ;;
+
+    createvm)
+        name=""
+        while [ "$#" -gt 0 ]; do
+            case "$1" in
+                --name) name="${2:-}"; shift 2 ;;
+                *) shift ;;
+            esac
+        done
+        [ -n "$name" ] || exit 1
+        set_state "$name" poweroff
+        ;;
+
+    modifyvm|createhd|createmedium|storagectl|storageattach)
+        exit 0
+        ;;
+
+    startvm)
+        vm="${1:-}"
+        exists_vm "$vm" || exit 1
+        set_state "$vm" running
+        ;;
+
+    controlvm)
+        vm="${1:-}"
+        action="${2:-}"
+        exists_vm "$vm" || exit 1
+        case "$action" in
+            poweroff|acpipowerbutton) set_state "$vm" poweroff ;;
+            *) exit 1 ;;
+        esac
+        ;;
+
+    unregistervm)
+        vm="${1:-}"
+        exists_vm "$vm" || exit 1
+        rm -f "$(state_file "$vm")"
+        rm -f "$STATE_DIR/meta/${vm}"__*
+        ;;
+
+    *)
+        echo "Commande non gérée par le faux VBoxManage : $cmd $*" >&2
+        exit 1
+        ;;
+esac
