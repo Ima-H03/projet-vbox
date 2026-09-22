@@ -1,3 +1,4 @@
+[![SAE51 Tests](https://github.com/Ima-H03/projet-vbox/actions/workflows/ci.yml/badge.svg)](https://github.com/Ima-H03/projet-vbox/actions/workflows/ci.yml)
 # SAE 51 - Automatisation de la création de machines VirtualBox
 
 Projet réalisé dans le cadre du BUT3 Réseaux & Télécommunications à l'IUT de Rouen.
