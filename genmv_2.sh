@@ -16,9 +16,9 @@ fi
 vm_cmd() { "$VBOXMANAGE" "$@"; }
 
 get_default_machine_folder() {
-    vm_cmd list systemproperties --machinereadable \
+    vm_cmd list systemproperties \
         | tr -d '\r' \
-        | sed -n 's/^defaultMachineFolder="\(.*\)"$/\1/p' \
+        | sed -n 's/^Default machine folder:[[:space:]]*//p' \
         | head -n 1
 }
 

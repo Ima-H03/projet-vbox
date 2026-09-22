@@ -25,3 +25,7 @@ Thumbs.db
 *.vmdk
 *.vhd
 *.vhdx
+
+# Captures finales du projet
+!captures/
+!captures/*.png

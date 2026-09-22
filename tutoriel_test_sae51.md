@@ -1,87 +1,71 @@
-# Tutoriel de test - SAE 51
+# Tutoriel de test illustré - SAE 51
 
-## 1. Objectif
+## Objectif
 
-Ce tutoriel explique étape par étape comment récupérer le projet, préparer l'environnement PXE, tester les scripts Bash et vérifier le fonctionnement de la version finale avec VirtualBox.
+Ce document décrit le déroulement pratique du test du projet `projet-vbox`.
 
-La solution retenue pour le projet est Bash sous Linux.
+La solution retenue est l'implémentation Bash sous Linux avec `VBoxManage`.
 
-## 2. Prérequis
+Le test final couvre :
 
-La machine de test doit disposer de :
-
-- Linux
-- Bash
-- VirtualBox
-- `VBoxManage`
-- un accès Internet pour télécharger les fichiers Debian nécessaires au PXE
-
-Vérifier la présence des commandes :
-
-```bash
-bash --version
-VBoxManage --version
-git --version
+```text
+Préparation PXE
+      ↓
+Création de la VM
+      ↓
+Configuration NAT + TFTP + PXE
+      ↓
+Démarrage réseau
+      ↓
+Chargement de l'installateur Debian
+      ↓
+Installation Debian automatisée par Preseed
+      ↓
+Démarrage sur le système installé
+      ↓
+Connexion SSH
+      ↓
+Vérification du système
+      ↓
+Arrêt et suppression de la VM
 ```
 
-## 3. Récupérer le projet
-
-Cloner le dépôt :
+## 1. Récupération du projet
 
 ```bash
 git clone https://github.com/Ima-H03/projet-vbox.git
-```
-
-Entrer dans le projet :
-
-```bash
 cd projet-vbox
 ```
 
-Vérifier les fichiers :
+Vérifier :
 
 ```bash
 ls
 ```
 
-Les fichiers principaux sont :
+Les principaux fichiers sont :
 
 ```text
 README.md
+usage.md
+suivi_projet.md
+tutoriel_test_sae51.md
 genmv_1.sh
 genmv_2.sh
 genmv_3.sh
 genmv_4.sh
 genmv_5.sh
 setup-pxe.sh
-suivi_projet.md
-usage.md
+preseed.cfg
 ```
 
-## 4. Donner les droits d'exécution
-
-Rendre les scripts exécutables :
+## 2. Droits d'exécution
 
 ```bash
-chmod +x genmv_1.sh
-chmod +x genmv_2.sh
-chmod +x genmv_3.sh
-chmod +x genmv_4.sh
-chmod +x genmv_5.sh
-chmod +x setup-pxe.sh
+chmod +x *.sh
 ```
 
-Vérifier :
-
-```bash
-ls -l *.sh
-```
-
-Les scripts doivent être exécutables.
-
-## 5. Vérifier la syntaxe des scripts
-
-Avant de les exécuter, vérifier leur syntaxe :
+## 3. Vérification de la syntaxe
 
 ```bash
 bash -n genmv_1.sh
@@ -94,152 +78,49 @@ bash -n setup-pxe.sh
 
 Aucune sortie indique qu'aucune erreur de syntaxe Bash n'a été détectée.
 
-## 6. Préparer l'environnement PXE
-
-La version 5 nécessite les fichiers TFTP utilisés pour le démarrage PXE.
-
-Lancer :
+## 4. Préparation PXE
 
 ```bash
 ./setup-pxe.sh
 ```
 
-Le script prépare le répertoire :
+Le script télécharge le netboot Debian et prépare :
 
 ```text
 ~/.config/VirtualBox/TFTP
 ```
 
-Vérifier le contenu principal :
+Les principaux fichiers sont :
+
+```text
+pxelinux.0
+ldlinux.c32
+preseed.cfg
+pxelinux.cfg/default
+debian-installer/amd64/linux
+debian-installer/amd64/initrd.gz
+```
+
+![Préparation PXE](captures/01_preparation_pxe.png)
+
+Vérification :
 
 ```bash
 test -f ~/.config/VirtualBox/TFTP/pxelinux.0 && echo "pxelinux.0 OK"
+test -f ~/.config/VirtualBox/TFTP/ldlinux.c32 && echo "ldlinux.c32 OK"
+test -f ~/.config/VirtualBox/TFTP/preseed.cfg && echo "preseed.cfg OK"
 test -f ~/.config/VirtualBox/TFTP/pxelinux.cfg/default && echo "default OK"
 test -f ~/.config/VirtualBox/TFTP/debian-installer/amd64/linux && echo "linux OK"
 test -f ~/.config/VirtualBox/TFTP/debian-installer/amd64/initrd.gz && echo "initrd.gz OK"
 ```
 
-Le résultat attendu est :
-
-```text
-pxelinux.0 OK
-default OK
-linux OK
-initrd.gz OK
-```
-
-## 7. Vérifier la configuration PXE
-
-Afficher la configuration PXELINUX :
-
-```bash
-cat ~/.config/VirtualBox/TFTP/pxelinux.cfg/default
-```
-
-Vérifier également le serveur TFTP utilisé par la version 5 :
-
-```bash
-grep 'PXE_TFTP_SERVER' genmv_5.sh
-```
-
-Dans l'environnement de test du projet, la valeur validée est :
-
-```text
-PXE_TFTP_SERVER="10.0.2.2"
-```
-
-## 8. Tester la version 3
-
-La version 3 utilise les opérations suivantes :
-
-```text
-L : liste des VM
-N : création
-D : démarrage
-A : arrêt
-S : suppression
-```
-
-Lister les machines :
-
-```bash
-./genmv_3.sh L
-```
-
-Créer une machine de test :
-
-```bash
-./genmv_3.sh N test-vbox
-```
-
-Vérifier son existence :
-
-```bash
-VBoxManage list vms
-```
-
-Puis supprimer la machine :
-
-```bash
-./genmv_3.sh S test-vbox
-```
-
-Vérifier :
-
-```bash
-VBoxManage list vms
-```
-
-## 9. Tester la version 4
-
-Créer une machine avec la version 4 :
-
-```bash
-./genmv_4.sh N test-vbox
-```
-
-Afficher les machines :
-
-```bash
-./genmv_4.sh L
-```
-
-La liste doit afficher les informations de métadonnées enregistrées par le script, notamment la date de création et l'utilisateur.
-
-Les valeurs peuvent également être vérifiées directement avec :
-
-```bash
-VBoxManage getextradata test-vbox "SAE51/metadata/creation_date"
-VBoxManage getextradata test-vbox "SAE51/metadata/creator"
-```
-
-Après le test, supprimer la machine :
-
-```bash
-./genmv_4.sh S test-vbox
-```
-
-## 10. Tester la version finale
-
-### 10.1 Vérifier qu'une ancienne VM de test n'existe plus
-
-```bash
-VBoxManage list vms
-```
-
-Si `test-vbox` existe encore, la supprimer :
-
-```bash
-./genmv_5.sh S test-vbox
-```
-
-### 10.2 Créer la machine
+## 5. Création de la VM
 
 ```bash
 ./genmv_5.sh N test-vbox
 ```
 
-Le script configure notamment :
+Configuration utilisée :
 
 ```text
 RAM       : 4096 MiB
@@ -252,13 +133,15 @@ TFTP NAT  : 10.0.2.2
 Fichier   : pxelinux.0
 ```
 
-### 10.3 Vérifier la configuration VirtualBox
+![Création de la VM](captures/02_creation_genmv5.png)
+
+## 6. Vérification de la configuration PXE
 
 ```bash
 VBoxManage showvminfo test-vbox | grep -E "Boot Device|NIC 1|TFTP"
 ```
 
-Vérifier que :
+Vérifier notamment :
 
 ```text
 Boot Device 1: Network
@@ -266,81 +149,219 @@ Attachment: NAT
 EnableTFTP: 1
 ```
 
-## 11. Démarrer la VM
+![Configuration PXE](captures/03_configuration_pxe.png)
 
-Démarrer la VM :
+## 7. Métadonnées VirtualBox
+
+```bash
+./genmv_4.sh L
+```
+
+Puis :
+
+```bash
+VBoxManage getextradata test-vbox "SAE51/metadata/creation_date"
+VBoxManage getextradata test-vbox "SAE51/metadata/creator"
+```
+
+![Métadonnées](captures/04_metadata_genmv4.png)
+
+## 8. Activer la capture réseau
+
+```bash
+mkdir -p ~/SAE51-preuves-finales
+```
+
+```bash
+VBoxManage modifyvm test-vbox \
+  --nic-trace1 on \
+  --nic-trace-file1 "$HOME/SAE51-preuves-finales/pxe-preseed.pcap"
+```
+
+Vérifier :
+
+```bash
+VBoxManage showvminfo test-vbox | grep "Trace:"
+```
+
+## 9. Démarrage PXE
 
 ```bash
 ./genmv_5.sh D test-vbox
 ```
 
-Ou directement avec VirtualBox :
-
-```bash
-VBoxManage startvm test-vbox
-```
-
-Attendre quelques secondes :
+Attendre le démarrage :
 
 ```bash
 sleep 30
 ```
 
-## 12. Vérifier l'écran de la VM
+## 10. Vérifier les échanges TFTP
+
+```bash
+tcpdump -vvv -nn \
+-r ~/SAE51-preuves-finales/pxe-preseed.pcap \
+'udp port 69' | grep 'RRQ'
+```
+
+Rechercher en particulier :
+
+```text
+RRQ "pxelinux.0"
+RRQ "ldlinux.c32"
+RRQ "pxelinux.cfg/default"
+RRQ "debian-installer/amd64/linux"
+RRQ "debian-installer/amd64/initrd.gz"
+RRQ "preseed.cfg"
+```
+
+![Vérification TFTP](captures/05_verification_tftp.png)
+
+## 11. Vérifier le lancement de l'installateur
 
 Créer une capture :
 
 ```bash
-VBoxManage controlvm test-vbox screenshotpng ~/pxe-screen-test.png
+VBoxManage controlvm test-vbox screenshotpng \
+  ~/SAE51-preuves-finales/installateur-debian.png
 ```
 
-Vérifier que le fichier existe :
+![Installateur Debian](captures/06_installateur_debian.png)
 
-```bash
-ls -lh ~/pxe-screen-test.png
-```
+Cette capture montre le lancement de l'installateur Debian.
 
-Ouvrir ensuite l'image.
+## 12. Installation automatisée avec Preseed
 
-Dans le test réalisé pour le projet, l'écran affichait l'installateur Debian après le démarrage PXE.
-
-## 13. Vérifier les échanges PXE/TFTP
-
-Pour réaliser une capture réseau avec la trace de la carte réseau VirtualBox :
-
-```bash
-VBoxManage modifyvm test-vbox   --nic-trace1 on   --nic-trace-file1 "$HOME/pxe-test-final.pcap"
-```
-
-Redémarrer la VM après avoir activé la trace, puis attendre le démarrage PXE.
-
-Analyser les requêtes TFTP :
-
-```bash
-tcpdump -vvv -nn -r ~/pxe-test-final.pcap 'udp port 69' | grep 'RRQ'
-```
-
-Vérifier particulièrement :
-
-```bash
-tcpdump -vvv -nn -r ~/pxe-test-final.pcap 'udp port 69' | grep -E 'RRQ.*(linux|initrd)'
-```
-
-Dans le test validé du projet, les requêtes suivantes ont été observées :
+Le fichier :
 
 ```text
-test-vbox.pxe
-ldlinux.c32
-pxelinux.cfg/default
-debian-installer/amd64/linux
-debian-installer/amd64/initrd.gz
+preseed.cfg
 ```
 
-La présence de `linux` et `initrd.gz` montre que la VM demande bien le noyau et l'image initrd de l'installateur Debian via TFTP.
+est téléchargé depuis le serveur TFTP et fournit automatiquement les réponses prévues pour l'installation.
 
-## 14. Tester l'arrêt
+La configuration PXELINUX utilise :
 
-Arrêter la machine :
+```text
+preseed/url=tftp://10.0.2.2/preseed.cfg
+```
+
+Le test de l'installation doit être suivi jusqu'à sa fin sans intervention manuelle pour les paramètres pris en charge par le preseed.
+
+## 13. Vérifier la fin de l'installation
+
+Après l'installation, la VM démarre sur le système Debian installé.
+
+Une capture de la console peut être réalisée :
+
+```bash
+VBoxManage controlvm test-vbox screenshotpng \
+  ~/SAE51-preuves-finales/systeme-debian-installe.png
+```
+
+### Preuve du système installé
+
+![Debian installé](captures/08_systeme_debian_installe_tty.png)
+
+Cette capture montre :
+
+```text
+Debian GNU/Linux 13 debian tty1
+debian login:
+```
+
+Elle constitue la preuve que l'installation est terminée et que la VM est arrivée sur un système Debian installé, avec le service de connexion disponible.
+
+## 14. Configuration de la redirection SSH
+
+Ajouter une redirection du port 2222 de l'hôte vers le port 22 de la VM :
+
+```bash
+VBoxManage modifyvm test-vbox \
+  --natpf1 "ssh,tcp,,2222,,22"
+```
+
+Vérifier :
+
+```bash
+VBoxManage showvminfo test-vbox | grep -i "Rule"
+```
+
+La règle doit correspondre à :
+
+```text
+ssh,tcp,,2222,,22
+```
+
+Le chemin est :
+
+```text
+127.0.0.1:2222
+      ↓
+NAT VirtualBox
+      ↓
+VM Debian : 22
+```
+
+## 15. Connexion SSH
+
+Depuis l'hôte :
+
+```bash
+ssh -p 2222 sae51@127.0.0.1
+```
+
+Une fois connecté :
+
+```bash
+whoami
+```
+
+Résultat attendu :
+
+```text
+sae51
+```
+
+Puis :
+
+```bash
+test -f /etc/sae51-preseed-ok && echo "PRESEED OK"
+```
+
+Puis :
+
+```bash
+cat /etc/debian_version
+```
+
+Et :
+
+```bash
+hostname
+```
+
+![Fin de l'installation et connexion SSH](captures/09_connexion_ssh_preseed.png)
+
+La connexion SSH permet de vérifier que le système installé est accessible depuis l'hôte.
+
+## 16. Vérification distante
+
+Tester également une commande directement depuis l'hôte :
+
+```bash
+ssh -p 2222 sae51@127.0.0.1 'whoami && cat /etc/debian_version && hostname'
+```
+
+## 17. Fin du test
+
+Quitter la session SSH :
+
+```bash
+exit
+```
+
+Arrêter la VM :
 
 ```bash
 ./genmv_5.sh A test-vbox
@@ -352,100 +373,83 @@ Vérifier :
 VBoxManage showvminfo test-vbox | grep "State:"
 ```
 
-## 15. Tester la suppression
-
-Supprimer la machine :
+Supprimer la VM :
 
 ```bash
 ./genmv_5.sh S test-vbox
 ```
 
-Vérifier :
+Puis :
 
 ```bash
 VBoxManage list vms
 ```
 
-`test-vbox` ne doit plus être enregistrée dans VirtualBox.
+`test-vbox` ne doit plus apparaître.
 
-## 16. Test complet recommandé
-
-Pour refaire le scénario final depuis le début :
+## 18. Vérification finale du dépôt
 
 ```bash
 cd ~/projet-vbox
-chmod +x *.sh
-./setup-pxe.sh
-./genmv_5.sh S test-vbox
-./genmv_5.sh N test-vbox
-./genmv_5.sh D test-vbox
-sleep 30
-VBoxManage controlvm test-vbox screenshotpng ~/pxe-screen-final.png
-```
-
-Puis vérifier la capture réseau et l'écran de la VM.
-
-À la fin :
-
-```bash
-./genmv_5.sh A test-vbox
-./genmv_5.sh S test-vbox
-```
-
-## 17. Vérification finale du projet
-
-Vérifier le dépôt :
-
-```bash
 git status
 ```
 
-Pour un dépôt propre :
+Le dépôt doit être propre :
 
 ```text
 nothing to commit, working tree clean
 ```
 
-Vérifier les derniers commits :
+Puis :
 
 ```bash
 git log --oneline -5
 ```
 
-## 18. Problème rencontré pendant les tests du projet
+## 19. Résultat final attendu
 
-Lors des premiers essais PXE, la configuration du serveur TFTP NAT avec `10.0.2.4` n'a pas permis d'obtenir le fonctionnement PXE attendu.
-
-La configuration utilisant :
+Le projet est testé selon la chaîne suivante :
 
 ```text
-10.0.2.2
+Clone du dépôt
+      ↓
+setup-pxe.sh
+      ↓
+Préparation TFTP
+      ↓
+genmv_5.sh N test-vbox
+      ↓
+Configuration VirtualBox
+      ↓
+Boot PXE
+      ↓
+linux + initrd.gz
+      ↓
+preseed.cfg
+      ↓
+Installation Debian
+      ↓
+Debian installé
+      ↓
+Connexion SSH
+      ↓
+Vérification PRESEED OK
+      ↓
+Arrêt
+      ↓
+Suppression
 ```
 
-a ensuite été testée et validée dans l'environnement VirtualBox utilisé pour le projet.
-
-## 19. Résultat attendu
-
-Le test est considéré comme réussi lorsque les éléments suivants sont validés :
+## 20. Captures utilisées
 
 ```text
-Préparation PXE
-      ↓
-Fichiers TFTP présents
-      ↓
-Création de la VM
-      ↓
-Réseau NAT
-      ↓
-Boot réseau
-      ↓
-PXE / TFTP
-      ↓
-Chargement de linux
-      ↓
-Chargement de initrd.gz
-      ↓
-Installateur Debian affiché
+captures/
+├── 01_preparation_pxe.png
+├── 02_creation_genmv5.png
+├── 03_configuration_pxe.png
+├── 04_metadata_genmv4.png
+├── 05_verification_tftp.png
+├── 06_installateur_debian.png
+├── 07_arret_suppression.png
+└── 08_systeme_debian_installe_tty.png
 ```
-
-Ce document complète `usage.md` : `usage.md` présente l'utilisation des scripts et leurs fonctionnalités, tandis que ce tutoriel détaille le déroulement pratique du test.
